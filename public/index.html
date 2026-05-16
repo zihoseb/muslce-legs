@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta
+      name="description"
+      content="肌肉腿大合成是合成大西瓜风格的下落物理合成小游戏。"
+    >
+    <title>肌肉腿大合成</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <main class="game-app">
+      <header class="topbar" aria-label="玩家状态">
+        <div class="brand">
+          <span class="brand-mark" aria-hidden="true"></span>
+          <div>
+            <h1>肌肉腿大合成</h1>
+            <p id="player-name">健腿新秀</p>
+          </div>
+        </div>
+
+        <dl class="stat-strip">
+          <div class="stat-item">
+            <dt>本局分数</dt>
+            <dd id="score-count">0</dd>
+          </div>
+          <div class="stat-item coin-stat">
+            <dt>金币</dt>
+            <dd id="coin-count">0</dd>
+          </div>
+          <div class="stat-item">
+            <dt>最高等级</dt>
+            <dd id="max-level">L1</dd>
+          </div>
+          <div class="stat-item">
+            <dt>连击</dt>
+            <dd id="combo-count">0x</dd>
+          </div>
+        </dl>
+
+        <button class="icon-button reset-button" id="reset-save" type="button" aria-label="重置存档">
+          <span aria-hidden="true">R</span>
+        </button>
+      </header>
+
+      <section class="game-layout">
+        <aside class="panel side-panel" aria-label="任务与好友">
+          <section class="panel-section" aria-labelledby="tasks-title">
+            <div class="panel-heading">
+              <h2 id="tasks-title">任务</h2>
+              <span id="task-summary">0/0</span>
+            </div>
+            <div class="task-list" id="task-list"></div>
+          </section>
+
+          <section class="panel-section" aria-labelledby="friends-title">
+            <div class="panel-heading">
+              <h2 id="friends-title">好友</h2>
+              <span id="gift-summary">L1</span>
+            </div>
+            <label class="friend-select">
+              <span>接收人</span>
+              <select id="friend-select"></select>
+            </label>
+            <button class="command-button secondary" id="gift-leg" type="button">
+              赠送最高肌肉腿
+            </button>
+          </section>
+        </aside>
+
+        <section class="arena panel" aria-labelledby="arena-title">
+          <div class="arena-head">
+            <div>
+              <p class="eyebrow">Suika Style</p>
+              <h2 id="arena-title">下落合成场</h2>
+            </div>
+            <div class="arena-tools" aria-label="本局操作">
+              <div class="next-card" aria-label="下一条肌肉腿">
+                <span>下一条</span>
+                <strong id="next-label">白腿 L1</strong>
+                <i id="next-preview" aria-hidden="true"></i>
+              </div>
+              <button class="command-button" id="drop-leg" type="button">落下</button>
+              <button class="icon-button" id="pause-game" type="button" aria-label="暂停">
+                <span aria-hidden="true">Ⅱ</span>
+              </button>
+              <button class="icon-button" id="new-round" type="button" aria-label="新一局">
+                <span aria-hidden="true">↻</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="status-bar">
+            <span id="run-status">准备投放</span>
+            <strong id="danger-status">稳定</strong>
+          </div>
+
+          <div class="canvas-shell">
+            <canvas
+              id="game-canvas"
+              width="420"
+              height="620"
+              aria-label="合成大西瓜风格肌肉腿物理场"
+            ></canvas>
+            <div class="game-over" id="game-over" hidden>
+              <strong>本局结束</strong>
+              <span id="final-score">0 分</span>
+              <button class="command-button" id="restart-round" type="button">再来一局</button>
+            </div>
+          </div>
+        </section>
+
+        <aside class="panel side-panel" aria-label="排行榜与奖励">
+          <section class="panel-section" aria-labelledby="leaderboard-title">
+            <div class="panel-heading">
+              <h2 id="leaderboard-title">排行榜</h2>
+              <span>Top 10</span>
+            </div>
+            <ol class="leaderboard" id="leaderboard-list"></ol>
+          </section>
+
+          <section class="panel-section" aria-labelledby="boost-title">
+            <div class="panel-heading">
+              <h2 id="boost-title">奖励</h2>
+              <span>活动</span>
+            </div>
+            <div class="boost-grid">
+              <button class="reward-tile" id="share-game" type="button">
+                <strong>分享</strong>
+                <span>+50 金币</span>
+              </button>
+              <button class="reward-tile" id="reward-ad" type="button">
+                <strong>激励广告</strong>
+                <span>+80 金币</span>
+              </button>
+              <button class="reward-tile" id="buy-pack" type="button">
+                <strong>金币包</strong>
+                <span>+300 金币</span>
+              </button>
+            </div>
+          </section>
+
+          <section class="panel-section" aria-labelledby="catalog-title">
+            <div class="panel-heading">
+              <h2 id="catalog-title">图鉴</h2>
+              <span id="catalog-summary">0</span>
+            </div>
+            <div class="catalog-list" id="catalog-list"></div>
+          </section>
+        </aside>
+      </section>
+    </main>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+    <script src="app.js"></script>
+  </body>
+</html>

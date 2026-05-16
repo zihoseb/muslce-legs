@@ -1,0 +1,164 @@
+{
+  "source": "source-poses-sprite-transparent.png",
+  "layout": "5 columns x 4 rows: white L1-L5, white L6-L10, black L1-L5, black L6-L10",
+  "size": 420,
+  "cleanup": "alpha threshold + connected-component filtering + tight subject crop",
+  "assets": [
+    {
+      "color": "white",
+      "level": 1,
+      "pose": "standing-slim",
+      "image": "white-level-1.png",
+      "highlight": "white-level-1-highlight.png"
+    },
+    {
+      "color": "white",
+      "level": 2,
+      "pose": "turned-in-bent-knee",
+      "image": "white-level-2.png",
+      "highlight": "white-level-2-highlight.png"
+    },
+    {
+      "color": "white",
+      "level": 3,
+      "pose": "wide-step",
+      "image": "white-level-3.png",
+      "highlight": "white-level-3-highlight.png"
+    },
+    {
+      "color": "white",
+      "level": 4,
+      "pose": "shallow-squat",
+      "image": "white-level-4.png",
+      "highlight": "white-level-4-highlight.png"
+    },
+    {
+      "color": "white",
+      "level": 5,
+      "pose": "lunge",
+      "image": "white-level-5.png",
+      "highlight": "white-level-5-highlight.png"
+    },
+    {
+      "color": "white",
+      "level": 6,
+      "pose": "side-stance",
+      "image": "white-level-6.png",
+      "highlight": "white-level-6-highlight.png"
+    },
+    {
+      "color": "white",
+      "level": 7,
+      "pose": "one-knee-kneel",
+      "image": "white-level-7.png",
+      "highlight": "white-level-7-highlight.png"
+    },
+    {
+      "color": "white",
+      "level": 8,
+      "pose": "deep-squat",
+      "image": "white-level-8.png",
+      "highlight": "white-level-8-highlight.png"
+    },
+    {
+      "color": "white",
+      "level": 9,
+      "pose": "rear-view",
+      "image": "white-level-9.png",
+      "highlight": "white-level-9-highlight.png"
+    },
+    {
+      "color": "white",
+      "level": 10,
+      "pose": "reclining-side-lying",
+      "image": "white-level-10.png",
+      "highlight": "white-level-10-highlight.png"
+    },
+    {
+      "color": "black",
+      "level": 1,
+      "pose": "standing-slim",
+      "image": "black-level-1.png",
+      "highlight": "black-level-1-highlight.png"
+    },
+    {
+      "color": "black",
+      "level": 2,
+      "pose": "turned-in-bent-knee",
+      "image": "black-level-2.png",
+      "highlight": "black-level-2-highlight.png"
+    },
+    {
+      "color": "black",
+      "level": 3,
+      "pose": "wide-step",
+      "image": "black-level-3.png",
+      "highlight": "black-level-3-highlight.png"
+    },
+    {
+      "color": "black",
+      "level": 4,
+      "pose": "shallow-squat",
+      "image": "black-level-4.png",
+      "highlight": "black-level-4-highlight.png"
+    },
+    {
+      "color": "black",
+      "level": 5,
+      "pose": "lunge",
+      "image": "black-level-5.png",
+      "highlight": "black-level-5-highlight.png"
+    },
+    {
+      "color": "black",
+      "level": 6,
+      "pose": "side-stance",
+      "image": "black-level-6.png",
+      "highlight": "black-level-6-highlight.png"
+    },
+    {
+      "color": "black",
+      "level": 7,
+      "pose": "one-knee-kneel",
+      "image": "black-level-7.png",
+      "highlight": "black-level-7-highlight.png"
+    },
+    {
+      "color": "black",
+      "level": 8,
+      "pose": "deep-squat",
+      "image": "black-level-8.png",
+      "highlight": "black-level-8-highlight.png"
+    },
+    {
+      "color": "black",
+      "level": 9,
+      "pose": "rear-view",
+      "image": "black-level-9.png",
+      "highlight": "black-level-9-highlight.png"
+    },
+    {
+      "color": "black",
+      "level": 10,
+      "pose": "reclining-side-lying",
+      "image": "black-level-10.png",
+      "highlight": "black-level-10-highlight.png"
+    }
+  ],
+  "poses": {
+    "1": "standing-slim",
+    "2": "turned-in-bent-knee",
+    "3": "wide-step",
+    "4": "shallow-squat",
+    "5": "lunge",
+    "6": "side-stance",
+    "7": "one-knee-kneel",
+    "8": "deep-squat",
+    "9": "rear-view",
+    "10": "reclining-side-lying"
+  },
+  "extraSources": [
+    "source-recline-l10-transparent.png"
+  ],
+  "l10Reference": "user-provided reclining leg pose reference, background removed and adapted as cutout sprites"
+}
