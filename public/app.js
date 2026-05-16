@@ -5,7 +5,9 @@ const AIR = 0.995;
 const RESTITUTION = 0.22;
 const FRICTION = 0.985;
 const DROP_COOLDOWN = 520;
-const DANGER_LIMIT = 2.4;
+const DEATH_LINE_SETTLE_MS = 720;
+const DEATH_LINE_SPEED = 92;
+const REVIVE_CLEARANCE = 96;
 const COMBO_WINDOW = 3600;
 const SHARE_REWARD = 50;
 const AD_REWARD = 80;
@@ -110,6 +112,8 @@ let lastDropAt = 0;
 let dangerTimer = 0;
 let paused = false;
 let gameOver = false;
+let reviveUsed = false;
+let gameOverMode = "final";
 let toastTimer = 0;
 let rewardTimer = 0;
 let eventsBound = false;
@@ -134,7 +138,12 @@ const els = {
   runStatus: document.querySelector("#run-status"),
   dangerStatus: document.querySelector("#danger-status"),
   gameOverPanel: document.querySelector("#game-over"),
+  gameOverTitle: document.querySelector("#game-over-title"),
+  gameOverReason: document.querySelector("#game-over-reason"),
   finalScore: document.querySelector("#final-score"),
+  reviveAd: document.querySelector("#revive-ad"),
+  reviveRound: document.querySelector("#revive-round"),
+  exitRound: document.querySelector("#exit-round"),
   restartRound: document.querySelector("#restart-round"),
   leaderboardList: document.querySelector("#leaderboard-list"),
   shareGame: document.querySelector("#share-game"),
@@ -179,6 +188,8 @@ function bindEvents() {
   els.pauseGame.addEventListener("click", togglePause);
   els.newRound.addEventListener("click", startNewRound);
   els.restartRound.addEventListener("click", startNewRound);
+  els.reviveRound.addEventListener("click", revivePlayer);
+  els.exitRound.addEventListener("click", exitRound);
   els.giftLeg.addEventListener("click", giftHighestLeg);
   els.shareGame.addEventListener("click", handleShareGame);
   els.rewardAd.addEventListener("click", handleRewardedAd);
@@ -336,19 +347,24 @@ function mergeBodies(bodyA, bodyB) {
   showToast([`${LEG_COLORS[merged.color].label} L${level} 合成，金币 +${coins}`, taskMessage].filter(Boolean).join(" | "));
 }
 
-function checkDanger(dt) {
-  const risky = bodies.some((body) => {
-    const slow = Math.abs(body.vy) < 75 && Math.abs(body.vx) < 75;
-    return body.y - body.radius < WORLD.dangerY && slow;
-  });
-
-  dangerTimer = risky ? dangerTimer + dt : Math.max(0, dangerTimer - dt * 1.6);
-
-  if (dangerTimer >= DANGER_LIMIT) {
-    endRound();
-  } else {
-    renderDanger();
+function checkDanger() {
+  if (bodies.some(isPastDeathLine)) {
+    endRound("球越过死亡线");
+    return;
   }
+
+  dangerTimer = bodies.some(isNearDeathLine) ? 1 : 0;
+  renderDanger();
+}
+
+function isPastDeathLine(body) {
+  const age = Date.now() - Number(body.createdAt || 0);
+  const settled = age > DEATH_LINE_SETTLE_MS && Math.abs(body.vx) < DEATH_LINE_SPEED && Math.abs(body.vy) < DEATH_LINE_SPEED;
+  return settled && body.y - body.radius <= WORLD.dangerY;
+}
+
+function isNearDeathLine(body) {
+  return body.y - body.radius <= WORLD.dangerY + 32;
 }
 
 function handlePointerMove(event) {
@@ -407,6 +423,8 @@ function startNewRound() {
   dangerTimer = 0;
   paused = false;
   gameOver = false;
+  reviveUsed = false;
+  gameOverMode = "final";
   state.player.score = 0;
   state.player.stats.currentCombo = 0;
   state.round = serializeRound();
@@ -415,14 +433,73 @@ function startNewRound() {
   showStatus("新一局开始");
 }
 
-function endRound() {
+function endRound(reason = "球越过死亡线") {
+  if (gameOver) {
+    return;
+  }
+
   gameOver = true;
+  gameOverMode = reviveUsed ? "final" : "revive";
   state.player.bestScore = Math.max(state.player.bestScore, state.player.score);
   updateLeaderboard(state.player);
   saveRound();
   saveGame();
   renderUi();
-  showToast(`本局结束，得分 ${state.player.score}`);
+  showStatus(reason);
+  showToast(gameOverMode === "revive" ? "球越过死亡线，扫码或观看广告可复活" : `本局结束，得分 ${state.player.score}`);
+}
+
+function revivePlayer() {
+  if (!gameOver || gameOverMode !== "revive") {
+    return;
+  }
+
+  reviveUsed = true;
+  gameOver = false;
+  paused = false;
+  dangerTimer = 0;
+  moveBodiesBelowDeathLine();
+  bodies.forEach((body) => {
+    body.vx = 0;
+    body.vy = 0;
+    body.flash = 1;
+    body.createdAt = Date.now();
+  });
+  state.player.stats.revives += 1;
+  pointerX = WORLD.width / 2;
+  lastDropAt = Date.now();
+  updateLeaderboard(state.player);
+  saveRound();
+  saveGame();
+  renderUi();
+  showStatus("扫码复活成功，继续合成");
+  showToast("复活成功，本局继续");
+}
+
+function moveBodiesBelowDeathLine() {
+  if (!bodies.length) {
+    return;
+  }
+
+  const minTop = Math.min(...bodies.map((body) => body.y - body.radius));
+  const offset = Math.max(0, WORLD.dangerY + REVIVE_CLEARANCE - minTop);
+  bodies.forEach((body, index) => {
+    body.y = Math.min(WORLD.floor - body.radius, body.y + offset + index * 0.7);
+    body.x = clamp(body.x, WORLD.wall + body.radius, WORLD.width - WORLD.wall - body.radius);
+  });
+}
+
+function exitRound() {
+  if (!gameOver) {
+    return;
+  }
+
+  reviveUsed = true;
+  gameOverMode = "final";
+  saveRound();
+  saveGame();
+  renderUi();
+  showStatus("本局结束");
 }
 
 function togglePause() {
@@ -512,7 +589,15 @@ function renderUi() {
   els.nextPreview.style.backgroundImage = `url("${currentLeg.image}")`;
   els.giftSummary.textContent = `L${state.player.maxLevelAchieved}`;
   els.gameOverPanel.hidden = !gameOver;
+  els.gameOverTitle.textContent = gameOverMode === "revive" ? "越线警告" : "本局结束";
+  els.gameOverReason.textContent = gameOverMode === "revive"
+    ? "球越过虚线，扫码或观看广告可复活"
+    : "本局已结束";
   els.finalScore.textContent = `${formatNumber(state.player.score)} 分`;
+  els.reviveAd.hidden = gameOverMode !== "revive";
+  els.reviveRound.hidden = gameOverMode !== "revive";
+  els.exitRound.hidden = gameOverMode !== "revive";
+  els.restartRound.hidden = gameOverMode === "revive";
   els.dropLeg.disabled = paused || gameOver;
   els.giftLeg.disabled = state.player.maxLevelAchieved <= 1 && state.player.stats.totalMerges === 0;
   renderTasks();
@@ -593,15 +678,12 @@ function renderCatalog() {
 }
 
 function renderDanger() {
-  const percent = Math.min(100, Math.round((dangerTimer / DANGER_LIMIT) * 100));
   if (gameOver) {
-    els.dangerStatus.textContent = "结束";
-  } else if (percent > 60) {
-    els.dangerStatus.textContent = `危险 ${percent}%`;
-  } else if (percent > 0) {
-    els.dangerStatus.textContent = `偏高 ${percent}%`;
+    els.dangerStatus.textContent = gameOverMode === "revive" ? "可复活" : "结束";
+  } else if (dangerTimer > 0) {
+    els.dangerStatus.textContent = "临近死亡线";
   } else {
-    els.dangerStatus.textContent = "稳定";
+    els.dangerStatus.textContent = "死亡线";
   }
 }
 
@@ -636,12 +718,17 @@ function drawBackground() {
 
   ctx.strokeStyle = "rgba(201, 74, 63, 0.48)";
   ctx.setLineDash([8, 7]);
-  ctx.lineWidth = 2;
+  ctx.lineWidth = 3;
   ctx.beginPath();
   ctx.moveTo(WORLD.wall, WORLD.dangerY);
   ctx.lineTo(WORLD.width - WORLD.wall, WORLD.dangerY);
   ctx.stroke();
   ctx.setLineDash([]);
+  ctx.fillStyle = "rgba(201, 74, 63, 0.82)";
+  ctx.font = "900 12px system-ui, sans-serif";
+  ctx.textAlign = "left";
+  ctx.textBaseline = "bottom";
+  ctx.fillText("死亡线", WORLD.wall + 8, WORLD.dangerY - 7);
 }
 
 function drawDropGuide() {
@@ -807,6 +894,8 @@ function hydrateRound() {
   nextLeg = hydrateLegOption(round.nextLeg) || generateNextLeg();
   pointerX = Number(round.pointerX || WORLD.width / 2);
   gameOver = Boolean(round.gameOver);
+  reviveUsed = Boolean(round.reviveUsed);
+  gameOverMode = gameOver && !reviveUsed ? "revive" : "final";
   paused = false;
 }
 
@@ -828,12 +917,14 @@ function serializeRound() {
       x: body.x,
       y: body.y,
       vx: body.vx,
-      vy: body.vy
+      vy: body.vy,
+      createdAt: body.createdAt
     })),
     currentLeg,
     nextLeg,
     pointerX,
-    gameOver
+    gameOver,
+    reviveUsed
   };
 }
 
@@ -845,6 +936,7 @@ function hydrateBody(raw) {
   body.id = raw.id || generateUniqueId();
   body.vx = Number(raw.vx || 0);
   body.vy = Number(raw.vy || 0);
+  body.createdAt = Number(raw.createdAt || Date.now() - DEATH_LINE_SETTLE_MS);
   return body;
 }
 
@@ -859,6 +951,7 @@ function createBody(color, level, x, y) {
     y: Number(y || dropY()),
     vx: 0,
     vy: 0,
+    createdAt: Date.now(),
     flash: 0
   };
 }
@@ -1131,6 +1224,7 @@ function createDefaultState() {
         lastMergeAt: 0,
         shares: 0,
         sentLegs: 0,
+        revives: 0,
         adsWatched: 0,
         purchases: 0
       },

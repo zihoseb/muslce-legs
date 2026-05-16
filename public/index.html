@@ -105,8 +105,15 @@
               aria-label="合成大西瓜风格肌肉腿物理场"
             ></canvas>
             <div class="game-over" id="game-over" hidden>
-              <strong>本局结束</strong>
+              <strong id="game-over-title">本局结束</strong>
+              <p id="game-over-reason">球越过死亡线</p>
               <span id="final-score">0 分</span>
+              <div class="revive-ad" id="revive-ad">
+                <img src="assets/ads/revive_ad_qrcode.png" alt="扫码复活广告位">
+                <p>扫码查看广告位，点击复活继续本局</p>
+              </div>
+              <button class="command-button" id="revive-round" type="button">观看广告复活</button>
+              <button class="command-button secondary" id="exit-round" type="button">退出游戏</button>
               <button class="command-button" id="restart-round" type="button">再来一局</button>
             </div>
           </div>
@@ -139,6 +146,17 @@
                 <strong>金币包</strong>
                 <span>+300 金币</span>
               </button>
+            </div>
+          </section>
+
+          <section class="panel-section" aria-labelledby="revive-ad-title">
+            <div class="panel-heading">
+              <h2 id="revive-ad-title">复活广告</h2>
+              <span>扫码位</span>
+            </div>
+            <div class="ad-slot">
+              <img src="assets/ads/revive_ad_qrcode.png" alt="扫码复活广告位">
+              <p>游戏结束后扫码或观看广告可复活</p>
             </div>
           </section>
 

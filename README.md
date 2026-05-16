@@ -81,13 +81,25 @@ npm run start:lan
 - 任务成就：自动检测完成并发放金币
 - 排行榜：本地玩家与模拟玩家 Top 10
 - 奖励循环：分享奖励、激励广告冷却、模拟金币包
+- 死亡线与复活：球稳定越过虚线后触发结束，可通过复活广告位继续本局
 - 本地存档：`localStorage` 保存玩家进度
+
+## 复活广告二维码
+
+复活弹窗和右侧广告位默认读取：
+
+```text
+public/assets/ads/revive_ad_qrcode.png
+```
+
+当前文件是占位图。要使用真实微信收款码，把你的收款码图片另存为同名文件并覆盖它，然后重新提交、推送到 GitHub。
 
 ## 主要文件
 
 - `public/index.html`：游戏界面结构
 - `public/styles.css`：布局、肌肉腿视觉、动画和响应式样式
 - `public/app.js`：合成逻辑、背包、任务、排行榜、分享和赠送
+- `public/assets/ads/revive_ad_qrcode.png`：复活广告二维码素材
 - `server.js`：本地静态文件服务
 
 ## 开发检查
