@@ -29,6 +29,10 @@ body {
   overflow: hidden;
   overscroll-behavior: none;
   touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 body {
@@ -56,6 +60,15 @@ select {
 
 button {
   -webkit-tap-highlight-color: transparent;
+}
+
+.game-app,
+.game-layout,
+.arena,
+.canvas-shell,
+canvas {
+  overscroll-behavior: none;
+  touch-action: none;
 }
 
 .game-app {
@@ -964,7 +977,7 @@ button:disabled {
 }
 
 .menu-action-grid {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .menu-action-grid .command-button,

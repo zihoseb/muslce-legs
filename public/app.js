@@ -16,7 +16,37 @@ const AD_COOLDOWN_MS = 30000;
 const MAX_LEVEL = 10;
 const MAX_GAME_WIDTH = 430;
 const ASSET_BASE = new URL("assets/muscle-legs/", document.baseURI).href.replace(/\/$/, "");
+const AUDIO_BASE = new URL("assets/audio/", document.baseURI).href.replace(/\/$/, "");
 const ANIMATION_DURATION = 540;
+const SHOW_AIM_LINE = false;
+
+const LEG_ASSETS = Object.fromEntries(
+  ["white", "black"].map((color) => [
+    color,
+    Object.fromEntries(
+      Array.from({ length: MAX_LEVEL }, (_, index) => {
+        const level = index + 1;
+        const baseName = `${color}-level-${level}`;
+        return [
+          level,
+          {
+            image: `${ASSET_BASE}/${baseName}.png`,
+            highlightImage: `${ASSET_BASE}/${baseName}-highlight.png`,
+            animationFrames: [1, 2, 3].map((frame) => `${ASSET_BASE}/animation/${baseName}-frame-${frame}.png`)
+          }
+        ];
+      })
+    )
+  ])
+);
+
+const MERGE_SOUNDS = Object.fromEntries(
+  Array.from({ length: 8 }, (_, index) => {
+    const level = index + 1;
+    return [level, `${AUDIO_BASE}/merge_power_lv${level}.mp3`];
+  })
+);
+MERGE_SOUNDS.silence = `${AUDIO_BASE}/silence.mp3`;
 
 const LEG_COLORS = {
   white: {
@@ -127,6 +157,10 @@ let activePanel = "";
 let toastTimer = 0;
 let rewardTimer = 0;
 let viewportRaf = 0;
+let lastTouchEnd = 0;
+let soundEnabled = state.player.soundEnabled !== false;
+let audioUnlocked = false;
+let activeMergeSounds = [];
 let eventsBound = false;
 const imageCache = new Map();
 
@@ -197,6 +231,13 @@ function bindEvents() {
     window.visualViewport.addEventListener("resize", scheduleViewportLayout);
     window.visualViewport.addEventListener("scroll", scheduleViewportLayout);
   }
+  document.addEventListener("touchend", preventDoubleTapZoom, { passive: false });
+  document.addEventListener("touchstart", preventMultiTouchZoom, { passive: false });
+  document.addEventListener("touchmove", preventPageTouchMove, { passive: false });
+  document.addEventListener("gesturestart", preventGestureZoom, { passive: false });
+  document.addEventListener("dblclick", preventBrowserZoom, { passive: false });
+  document.addEventListener("touchstart", unlockAudio, { once: true, passive: false });
+  document.addEventListener("click", unlockAudio, { once: true });
   canvas.addEventListener("pointermove", handlePointerMove);
   canvas.addEventListener("pointerdown", handlePointerDown);
   canvas.addEventListener("touchmove", (event) => event.preventDefault(), { passive: false });
@@ -228,6 +269,32 @@ function tick(time) {
 
   drawScene();
   requestAnimationFrame(tick);
+}
+
+function preventDoubleTapZoom(event) {
+  const now = Date.now();
+  if (now - lastTouchEnd <= 300) {
+    event.preventDefault();
+  }
+  lastTouchEnd = now;
+}
+
+function preventMultiTouchZoom(event) {
+  if (event.touches && event.touches.length > 1) {
+    event.preventDefault();
+  }
+}
+
+function preventPageTouchMove(event) {
+  event.preventDefault();
+}
+
+function preventGestureZoom(event) {
+  event.preventDefault();
+}
+
+function preventBrowserZoom(event) {
+  event.preventDefault();
 }
 
 function stepPhysics(dt) {
@@ -343,6 +410,7 @@ function mergeBodies(bodyA, bodyB) {
   merged.animationStartedAt = renderTime || performance.now();
   merged.animationUntil = merged.animationStartedAt + ANIMATION_DURATION;
   bodies.push(merged);
+  playMergeSound(level);
 
   const score = level * level * 22;
   const coins = level * 9 + rarityBonus(calculateRarity(level));
@@ -586,6 +654,18 @@ function handleCoinPack() {
   showToast(`金币包到账 +${COIN_PACK_REWARD}`);
 }
 
+function toggleSound() {
+  soundEnabled = !soundEnabled;
+  state.player.soundEnabled = soundEnabled;
+  saveGame();
+  if (soundEnabled) {
+    unlockAudio();
+  } else {
+    stopMergeSounds();
+  }
+  showToast(`音效已${soundEnabled ? "开启" : "关闭"}`);
+}
+
 function resetSave() {
   if (!window.confirm("重置会清空当前本地存档。")) {
     return;
@@ -767,6 +847,7 @@ function renderMenuPanel() {
       <button class="command-button" data-action="drop-current" type="button" ${paused || gameOver ? "disabled" : ""}>落下</button>
       <button class="command-button secondary" data-action="toggle-pause" type="button">${paused ? "继续" : "暂停"}</button>
       <button class="command-button secondary" data-action="new-round" type="button">重开</button>
+      <button class="command-button secondary" data-action="toggle-sound" type="button">音效：${soundEnabled ? "开" : "关"}</button>
     </div>
     <div class="menu-link-grid">
       <button class="dock-button" data-panel="tasks" type="button">
@@ -898,6 +979,8 @@ function handlePanelAction(event) {
     startNewRound();
     closePanel();
     return;
+  } else if (action === "toggle-sound") {
+    toggleSound();
   }
 
   if (activePanel) {
@@ -962,12 +1045,14 @@ function drawBackground() {
 function drawDropGuide() {
   const radius = radiusForLevel(currentLeg.level);
   pointerX = clamp(pointerX, dropMinX(), dropMaxX());
-  ctx.strokeStyle = "rgba(19, 130, 111, 0.34)";
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.moveTo(pointerX, 26);
-  ctx.lineTo(pointerX, WORLD.floor - 12);
-  ctx.stroke();
+  if (SHOW_AIM_LINE) {
+    ctx.strokeStyle = "rgba(19, 130, 111, 0.34)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(pointerX, 26);
+    ctx.lineTo(pointerX, WORLD.floor - 12);
+    ctx.stroke();
+  }
   drawToken(pointerX, dropY(), radius, currentLeg.color, currentLeg.level, 0.72, false, 0.7, currentLeg, true);
 }
 
@@ -1013,9 +1098,7 @@ function drawToken(x, y, radius, colorKey, level, alpha = 1, shadow = true, flas
   ctx.strokeStyle = flash > 0 ? "#ffffff" : rarity.color;
   ctx.stroke();
 
-  if (!drawLegAsset(x, y, radius, asset, highlighted)) {
-    drawLegGlyph(x, y, radius, colorKey);
-  }
+  drawLegAsset(x, y, radius, asset, highlighted);
 
   ctx.fillStyle = color.text;
   ctx.font = `900 ${Math.max(12, radius * 0.34)}px system-ui, sans-serif`;
@@ -1068,44 +1151,6 @@ function getActiveAssetPath(asset, highlighted) {
   return asset && asset.image ? asset.image : getLegImage("white", 1);
 }
 
-function drawLegGlyph(x, y, radius, colorKey) {
-  const color = LEG_COLORS[colorKey];
-  const scale = radius / 48;
-  ctx.save();
-  ctx.translate(x, y - radius * 0.12);
-  ctx.rotate(-0.14);
-  ctx.scale(scale, scale);
-  ctx.fillStyle = color.skin;
-  ctx.strokeStyle = color.stroke;
-  ctx.lineWidth = 4;
-  ctx.beginPath();
-  ctx.moveTo(-4, -34);
-  ctx.bezierCurveTo(13, -34, 22, -18, 16, -2);
-  ctx.bezierCurveTo(12, 10, 7, 17, 11, 29);
-  ctx.bezierCurveTo(4, 34, -8, 34, -16, 29);
-  ctx.bezierCurveTo(-10, 16, -9, 8, -16, -3);
-  ctx.bezierCurveTo(-25, -19, -17, -34, -4, -34);
-  ctx.closePath();
-  ctx.fill();
-  ctx.stroke();
-
-  ctx.fillStyle = color.shoe;
-  ctx.beginPath();
-  ctx.roundRect(-18, 26, 40, 13, 8);
-  ctx.fill();
-  ctx.stroke();
-
-  ctx.strokeStyle = colorKey === "black" ? "rgba(255,255,255,0.25)" : "rgba(255,255,255,0.72)";
-  ctx.lineWidth = 4;
-  ctx.beginPath();
-  ctx.moveTo(-8, -21);
-  ctx.bezierCurveTo(2, -27, 11, -21, 11, -10);
-  ctx.moveTo(-11, 3);
-  ctx.bezierCurveTo(-1, -3, 9, 0, 10, 11);
-  ctx.stroke();
-  ctx.restore();
-}
-
 function resizeCanvas() {
   const rect = canvas.getBoundingClientRect();
   dpr = Math.min(2, window.devicePixelRatio || 1);
@@ -1137,6 +1182,8 @@ function syncViewportLayout() {
   document.documentElement.style.setProperty("--app-height", `${viewportHeight}px`);
   document.documentElement.style.setProperty("--game-width", `${gameWidth}px`);
   document.documentElement.style.setProperty("--game-height", `${gameHeight}px`);
+  window.gameWidth = gameWidth;
+  window.gameHeight = gameHeight;
 
   if (canvas && ctx) {
     resizeCanvas();
@@ -1406,19 +1453,15 @@ function startRewardTimer() {
 }
 
 function getLegAsset(color, level) {
-  const safeColor = LEG_COLORS[color] ? color : "white";
-  const safeLevel = clamp(Math.round(Number(level) || 1), 1, MAX_LEVEL);
-  const baseName = `${safeColor}-level-${safeLevel}`;
-  return {
-    image: `${ASSET_BASE}/${baseName}.png`,
-    highlightImage: `${ASSET_BASE}/${baseName}-highlight.png`,
-    animationFrames: [1, 2, 3].map((frame) => `${ASSET_BASE}/animation/${baseName}-frame-${frame}.png`)
-  };
+  const safeColor = LEG_ASSETS[color] ? color : "white";
+  const levelMap = LEG_ASSETS[safeColor];
+  const requestedLevel = clamp(Math.round(Number(level) || 1), 1, MAX_LEVEL);
+  return levelMap[requestedLevel] || LEG_ASSETS.white[1];
 }
 
 function preloadLegAssets() {
   for (const color of Object.keys(LEG_COLORS)) {
-    for (let level = 1; level <= Math.min(4, MAX_LEVEL); level += 1) {
+    for (let level = 1; level <= MAX_LEVEL; level += 1) {
       const asset = getLegAsset(color, level);
       loadAssetImage(asset.image);
       loadAssetImage(asset.highlightImage);
@@ -1453,6 +1496,71 @@ function showToast(message) {
   toastTimer = window.setTimeout(() => els.toast.classList.remove("visible"), 3600);
 }
 
+function unlockAudio() {
+  if (audioUnlocked) {
+    return;
+  }
+
+  audioUnlocked = true;
+  const audio = new Audio(MERGE_SOUNDS.silence);
+  audio.volume = 0;
+  audio.play().catch(() => undefined);
+}
+
+function playMergeSound(level) {
+  if (!soundEnabled) {
+    return;
+  }
+
+  const soundLevel = clamp(Math.round(Number(level) || 1), 1, 8);
+  const soundSrc = MERGE_SOUNDS[soundLevel] || MERGE_SOUNDS[1];
+  if (activeMergeSounds.length >= 2) {
+    const weakest = activeMergeSounds
+      .map((entry, index) => ({ ...entry, index }))
+      .sort((a, b) => a.level - b.level || a.startedAt - b.startedAt)[0];
+    if (weakest) {
+      weakest.audio.pause();
+      weakest.audio.currentTime = 0;
+      activeMergeSounds.splice(weakest.index, 1);
+    }
+  }
+
+  const audio = new Audio(soundSrc);
+  audio.volume = getMergeSoundVolume(soundLevel);
+  const entry = { audio, level: soundLevel, startedAt: Date.now() };
+  activeMergeSounds.push(entry);
+  const cleanup = () => {
+    activeMergeSounds = activeMergeSounds.filter((item) => item.audio !== audio);
+  };
+
+  audio.onended = cleanup;
+  audio.onerror = cleanup;
+  audio.play().catch(cleanup);
+}
+
+function stopMergeSounds() {
+  activeMergeSounds.forEach(({ audio }) => {
+    audio.pause();
+    audio.currentTime = 0;
+  });
+  activeMergeSounds = [];
+}
+
+function getMergeSoundVolume(level) {
+  const volumeMap = {
+    1: 0.25,
+    2: 0.3,
+    3: 0.36,
+    4: 0.42,
+    5: 0.48,
+    6: 0.55,
+    7: 0.62,
+    8: 0.7
+  };
+
+  return volumeMap[level] || 0.35;
+}
+
 function createDefaultState() {
   return {
     player: {
@@ -1466,6 +1574,7 @@ function createDefaultState() {
       achievements: [],
       unlocked: { white: 1, black: 1 },
       lastUnlockedColor: "white",
+      soundEnabled: true,
       friends: [
         { id: "friend-sprinter", username: "短跑阿强", coins: 0, legs: [] },
         { id: "friend-coach", username: "器械教练", coins: 0, legs: [] },
@@ -1517,6 +1626,8 @@ function normalizePlayer(player) {
   player.achievements = Array.isArray(player.achievements) ? player.achievements : [];
   player.unlocked = { white: 1, black: 1, ...(player.unlocked || {}) };
   player.lastUnlockedColor = LEG_COLORS[player.lastUnlockedColor] ? player.lastUnlockedColor : "white";
+  player.soundEnabled = player.soundEnabled !== false;
+  soundEnabled = player.soundEnabled;
   player.friends = Array.isArray(player.friends) && player.friends.length ? player.friends : defaults.friends;
   player.stats = { ...defaults.stats, ...(player.stats || {}) };
   player.lastRewardedAdAt = Number(player.lastRewardedAdAt || 0);
