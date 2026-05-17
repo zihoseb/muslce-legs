@@ -844,26 +844,41 @@ button:disabled {
 }
 
 .toast {
-  position: fixed;
-  right: 18px;
-  bottom: 18px;
-  z-index: 40;
-  max-width: min(460px, calc(100vw - 36px));
-  padding: 13px 15px;
-  color: #ffffff;
-  background: rgba(24, 24, 23, 0.94);
-  border: 1px solid rgba(255, 255, 255, 0.16);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: min(100%, 430px);
+  max-width: 100%;
+  height: 0;
+  min-height: 0;
+  margin: 0 auto;
+  overflow: hidden;
+  padding: 0 14px;
+  color: var(--jade-deep);
+  background: rgba(239, 246, 241, 0.94);
+  border: 1px solid transparent;
   border-radius: 8px;
-  box-shadow: var(--shadow);
+  box-shadow: none;
+  font-size: 0.92rem;
+  font-weight: 950;
+  line-height: 1.15;
   opacity: 0;
   pointer-events: none;
-  transform: translateY(10px);
+  text-align: center;
+  text-overflow: ellipsis;
+  transform: translateY(-4px);
   transition:
+    height 160ms ease,
+    margin-bottom 160ms ease,
     opacity 160ms ease,
     transform 160ms ease;
+  white-space: nowrap;
 }
 
 .toast.visible {
+  height: 40px;
+  margin-bottom: 9px;
+  border-color: var(--line);
   opacity: 1;
   transform: translateY(0);
 }
