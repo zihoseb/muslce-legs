@@ -14,6 +14,7 @@ const AD_REWARD = 80;
 const COIN_PACK_REWARD = 300;
 const AD_COOLDOWN_MS = 30000;
 const MAX_LEVEL = 10;
+const MAX_GAME_WIDTH = 430;
 const ASSET_BASE = new URL("assets/muscle-legs/", document.baseURI).href.replace(/\/$/, "");
 const ANIMATION_DURATION = 540;
 
@@ -125,6 +126,7 @@ let gameOverMode = "final";
 let activePanel = "";
 let toastTimer = 0;
 let rewardTimer = 0;
+let viewportRaf = 0;
 let eventsBound = false;
 const imageCache = new Map();
 
@@ -170,6 +172,7 @@ function initializeGame() {
   normalizePlayer(state.player);
   canvas = document.querySelector("#game-canvas");
   ctx = canvas.getContext("2d");
+  syncViewportLayout();
   preloadLegAssets();
   hydrateRound();
   bindEvents();
@@ -178,7 +181,7 @@ function initializeGame() {
   checkTasks();
   saveGame();
   renderUi();
-  resizeCanvas();
+  syncViewportLayout();
   requestAnimationFrame(tick);
 }
 
@@ -188,7 +191,12 @@ function bindEvents() {
   }
 
   eventsBound = true;
-  window.addEventListener("resize", resizeCanvas);
+  window.addEventListener("resize", scheduleViewportLayout);
+  window.addEventListener("orientationchange", scheduleViewportLayout);
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener("resize", scheduleViewportLayout);
+    window.visualViewport.addEventListener("scroll", scheduleViewportLayout);
+  }
   canvas.addEventListener("pointermove", handlePointerMove);
   canvas.addEventListener("pointerdown", handlePointerDown);
   canvas.addEventListener("touchmove", (event) => event.preventDefault(), { passive: false });
@@ -1105,6 +1113,34 @@ function resizeCanvas() {
   canvas.width = Math.max(1, Math.round(rect.width * dpr));
   canvas.height = Math.max(1, Math.round(rect.height * dpr));
   ctx.setTransform(1, 0, 0, 1, 0, 0);
+}
+
+function scheduleViewportLayout() {
+  if (viewportRaf) {
+    return;
+  }
+
+  viewportRaf = requestAnimationFrame(() => {
+    viewportRaf = 0;
+    syncViewportLayout();
+  });
+}
+
+function syncViewportLayout() {
+  const viewport = window.visualViewport || window;
+  const viewportWidth = Math.max(1, Number(viewport.width || window.innerWidth || document.documentElement.clientWidth));
+  const viewportHeight = Math.max(1, Number(viewport.height || window.innerHeight || document.documentElement.clientHeight));
+  const gameWidth = Math.min(MAX_GAME_WIDTH, viewportWidth, viewportHeight * (WORLD.width / WORLD.height));
+  const gameHeight = gameWidth * (WORLD.height / WORLD.width);
+
+  document.documentElement.style.setProperty("--vh", `${viewportHeight * 0.01}px`);
+  document.documentElement.style.setProperty("--app-height", `${viewportHeight}px`);
+  document.documentElement.style.setProperty("--game-width", `${gameWidth}px`);
+  document.documentElement.style.setProperty("--game-height", `${gameHeight}px`);
+
+  if (canvas && ctx) {
+    resizeCanvas();
+  }
 }
 
 function hydrateRound() {
