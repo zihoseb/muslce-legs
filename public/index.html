@@ -43,17 +43,20 @@
 
       <section class="game-layout">
         <section class="arena panel" aria-labelledby="arena-title">
+          <div class="next-ball-preview" aria-label="下一个球">
+            <i id="next-preview" aria-hidden="true"></i>
+            <strong id="next-label">L1</strong>
+          </div>
+          <button class="menu-fab" id="open-menu" type="button" aria-label="打开菜单">
+            <span aria-hidden="true">☰</span>
+          </button>
+
           <div class="arena-head">
             <div>
               <p class="eyebrow">Suika Style</p>
               <h2 id="arena-title">合成场</h2>
             </div>
             <div class="arena-tools" aria-label="本局操作">
-              <div class="next-card" aria-label="下一条肌肉腿">
-                <span>下一条</span>
-                <strong id="next-label">白腿 L1</strong>
-                <i id="next-preview" aria-hidden="true"></i>
-              </div>
               <button class="command-button" id="drop-leg" type="button">落下</button>
               <button class="icon-button" id="pause-game" type="button" aria-label="暂停">
                 <span aria-hidden="true">Ⅱ</span>
@@ -75,7 +78,7 @@
             <canvas
               id="game-canvas"
               width="420"
-              height="620"
+              height="900"
               aria-label="合成大西瓜风格肌肉腿物理场"
             ></canvas>
             <div class="game-over" id="game-over" hidden>

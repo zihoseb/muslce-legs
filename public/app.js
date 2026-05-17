@@ -1,5 +1,5 @@
 const STORAGE_KEY = "muscle-leg-suika:v2";
-const WORLD = { width: 420, height: 620, wall: 18, floor: 598, dangerY: 104 };
+const WORLD = { width: 420, height: 900, wall: 18, floor: 878, dangerY: 104 };
 const GRAVITY = 1850;
 const AIR = 0.995;
 const RESTITUTION = 0.22;
@@ -97,6 +97,7 @@ const TASKS = [
 ];
 
 const PANEL_TITLES = {
+  menu: "菜单",
   tasks: "任务",
   catalog: "图鉴",
   leaderboard: "排行榜",
@@ -150,6 +151,7 @@ const els = {
   reviveRound: document.querySelector("#revive-round"),
   exitRound: document.querySelector("#exit-round"),
   restartRound: document.querySelector("#restart-round"),
+  openMenu: document.querySelector("#open-menu"),
   openTasks: document.querySelector("#open-tasks"),
   openCatalog: document.querySelector("#open-catalog"),
   openLeaderboard: document.querySelector("#open-leaderboard"),
@@ -197,6 +199,7 @@ function bindEvents() {
   els.restartRound.addEventListener("click", startNewRound);
   els.reviveRound.addEventListener("click", revivePlayer);
   els.exitRound.addEventListener("click", exitRound);
+  els.openMenu.addEventListener("click", () => openPanel("menu"));
   [els.openTasks, els.openCatalog, els.openLeaderboard, els.openShare].forEach((button) => {
     button.addEventListener("click", () => openPanel(button.dataset.panel));
   });
@@ -593,8 +596,12 @@ function renderUi() {
   els.coinCount.textContent = formatNumber(state.player.coins);
   els.maxLevel.textContent = `L${state.player.maxLevelAchieved}`;
   els.comboCount.textContent = `${state.player.stats.currentCombo}x`;
-  els.nextLabel.textContent = `${LEG_COLORS[currentLeg.color].label} L${currentLeg.level} / ${LEG_COLORS[nextLeg.color].label} L${nextLeg.level}`;
+  els.nextLabel.textContent = `L${currentLeg.level}`;
   els.nextPreview.style.backgroundImage = `url("${currentLeg.image}")`;
+  els.nextPreview.parentElement.setAttribute(
+    "aria-label",
+    `${LEG_COLORS[currentLeg.color].label} L${currentLeg.level}，下一条 ${LEG_COLORS[nextLeg.color].label} L${nextLeg.level}`
+  );
   els.taskBadge.textContent = `${state.player.achievements.length}/${TASKS.length}`;
   els.catalogBadge.textContent = String(getCatalogEntries().length);
   els.gameOverPanel.hidden = !gameOver;
@@ -728,6 +735,56 @@ function renderCatalogPanel() {
   `;
 }
 
+function renderMenuPanel() {
+  return `
+    <div class="menu-stat-grid">
+      <div class="menu-stat">
+        <span>本局分数</span>
+        <strong>${formatNumber(state.player.score)}</strong>
+      </div>
+      <div class="menu-stat coin-stat">
+        <span>金币</span>
+        <strong>${formatNumber(state.player.coins)}</strong>
+      </div>
+      <div class="menu-stat">
+        <span>最高等级</span>
+        <strong>L${state.player.maxLevelAchieved}</strong>
+      </div>
+      <div class="menu-stat">
+        <span>连击</span>
+        <strong>${state.player.stats.currentCombo}x</strong>
+      </div>
+    </div>
+    <div class="menu-action-grid">
+      <button class="command-button" data-action="drop-current" type="button" ${paused || gameOver ? "disabled" : ""}>落下</button>
+      <button class="command-button secondary" data-action="toggle-pause" type="button">${paused ? "继续" : "暂停"}</button>
+      <button class="command-button secondary" data-action="new-round" type="button">重开</button>
+    </div>
+    <div class="menu-link-grid">
+      <button class="dock-button" data-panel="tasks" type="button">
+        <span aria-hidden="true">✓</span>
+        <strong>任务</strong>
+        <em>${state.player.achievements.length}/${TASKS.length}</em>
+      </button>
+      <button class="dock-button" data-panel="catalog" type="button">
+        <span aria-hidden="true">▦</span>
+        <strong>图鉴</strong>
+        <em>${getCatalogEntries().length}</em>
+      </button>
+      <button class="dock-button" data-panel="leaderboard" type="button">
+        <span aria-hidden="true">#</span>
+        <strong>排行</strong>
+        <em>Top</em>
+      </button>
+      <button class="dock-button" data-panel="share" type="button">
+        <span aria-hidden="true">↗</span>
+        <strong>分享</strong>
+        <em>奖励</em>
+      </button>
+    </div>
+  `;
+}
+
 function renderSharePanel() {
   const elapsed = Date.now() - Number(state.player.lastRewardedAdAt || 0);
   const cooldown = Math.max(0, AD_COOLDOWN_MS - elapsed);
@@ -789,6 +846,7 @@ function renderActivePanel() {
   }
 
   const renderers = {
+    menu: renderMenuPanel,
     tasks: renderTasksPanel,
     catalog: renderCatalogPanel,
     leaderboard: renderLeaderboardPanel,
@@ -800,6 +858,12 @@ function renderActivePanel() {
 }
 
 function handlePanelAction(event) {
+  const panelControl = event.target.closest("[data-panel]");
+  if (panelControl && PANEL_TITLES[panelControl.dataset.panel]) {
+    openPanel(panelControl.dataset.panel);
+    return;
+  }
+
   const control = event.target.closest("[data-action]");
   if (!control || control.disabled) {
     return;
@@ -816,6 +880,16 @@ function handlePanelAction(event) {
     giftHighestLeg();
   } else if (action === "reset-save") {
     resetSave();
+  } else if (action === "drop-current") {
+    dropCurrentLeg();
+    closePanel();
+    return;
+  } else if (action === "toggle-pause") {
+    togglePause();
+  } else if (action === "new-round") {
+    startNewRound();
+    closePanel();
+    return;
   }
 
   if (activePanel) {

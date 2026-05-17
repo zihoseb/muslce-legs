@@ -51,7 +51,7 @@ button {
   width: min(100%, 430px);
   min-height: 100svh;
   margin: 0 auto;
-  padding: max(58px, calc(env(safe-area-inset-top) + 58px)) 6px max(92px, calc(env(safe-area-inset-bottom) + 92px));
+  padding: 0;
 }
 
 .topbar {
@@ -59,7 +59,7 @@ button {
   top: max(6px, env(safe-area-inset-top));
   left: 50%;
   z-index: 45;
-  display: grid;
+  display: none;
   grid-template-columns: 1fr;
   gap: 0;
   align-items: stretch;
@@ -162,11 +162,11 @@ button {
 .game-layout {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 6px;
+  gap: 0;
   align-items: start;
   justify-content: center;
   width: 100%;
-  min-height: calc(100svh - max(66px, calc(env(safe-area-inset-top) + 66px)));
+  min-height: 100svh;
   margin: 0;
   padding: 0;
 }
@@ -233,14 +233,14 @@ button {
   position: relative;
   display: flex;
   flex-direction: column;
-  min-height: calc(100svh - max(66px, calc(env(safe-area-inset-top) + 66px)));
+  min-height: 100svh;
   overflow: hidden;
   padding: 0;
 }
 
 .arena-head {
   order: 4;
-  display: grid;
+  display: none;
   gap: 0;
   align-items: stretch;
   margin: 6px 0 0;
@@ -300,6 +300,67 @@ button {
   background-size: contain;
 }
 
+.next-ball-preview {
+  position: absolute;
+  top: calc(env(safe-area-inset-top) + 12px);
+  left: 12px;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.74);
+  border: 1px solid rgba(217, 223, 215, 0.95);
+  border-radius: 50%;
+  box-shadow: 0 6px 18px rgba(24, 24, 23, 0.14);
+  backdrop-filter: blur(10px);
+  pointer-events: none;
+}
+
+.next-ball-preview i {
+  width: 42px;
+  height: 42px;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+}
+
+.next-ball-preview strong {
+  position: absolute;
+  right: 5px;
+  bottom: 3px;
+  min-width: 23px;
+  padding: 1px 4px;
+  color: #ffffff;
+  background: rgba(24, 24, 23, 0.82);
+  border-radius: 99px;
+  font-size: 0.68rem;
+  font-weight: 950;
+  line-height: 1.25;
+  text-align: center;
+}
+
+.menu-fab {
+  position: absolute;
+  top: calc(env(safe-area-inset-top) + 12px);
+  right: 12px;
+  z-index: 41;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.74);
+  border: 1px solid rgba(217, 223, 215, 0.95);
+  border-radius: 50%;
+  box-shadow: 0 6px 18px rgba(24, 24, 23, 0.14);
+  backdrop-filter: blur(10px);
+  cursor: pointer;
+  font-size: 1.1rem;
+  font-weight: 950;
+}
+
 .command-button,
 .icon-button,
 .reward-tile {
@@ -354,6 +415,7 @@ button:disabled {
 }
 
 .status-bar {
+  display: none;
   order: 1;
   min-height: 36px;
   margin-bottom: 6px;
@@ -372,17 +434,17 @@ button:disabled {
 .canvas-shell {
   order: 3;
   position: relative;
-  width: min(100%, 430px);
+  width: 100%;
   margin: 0 auto;
 }
 
 #game-canvas {
   display: block;
   width: 100%;
-  aspect-ratio: 420 / 620;
+  aspect-ratio: 420 / 900;
   background: var(--field);
-  border: 1px solid var(--line);
-  border-radius: 8px;
+  border: 0;
+  border-radius: 0;
   touch-action: none;
 }
 
@@ -680,7 +742,7 @@ button:disabled {
   left: 50%;
   bottom: max(6px, env(safe-area-inset-bottom));
   z-index: 44;
-  display: grid;
+  display: none;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 6px;
   width: min(420px, calc(100vw - 12px));
@@ -831,6 +893,63 @@ button:disabled {
   background: rgba(255, 255, 255, 0.72);
   border: 1px solid var(--line);
   border-radius: 8px;
+}
+
+.menu-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.menu-stat {
+  min-width: 0;
+  padding: 9px 6px;
+  background: rgba(239, 246, 241, 0.9);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  text-align: center;
+}
+
+.menu-stat span {
+  display: block;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 0.66rem;
+  font-weight: 900;
+  line-height: 1.1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.menu-stat strong {
+  display: block;
+  margin-top: 4px;
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 1.02rem;
+  font-weight: 950;
+  line-height: 1.1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.menu-action-grid,
+.menu-link-grid {
+  display: grid;
+  gap: 8px;
+}
+
+.menu-action-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.menu-action-grid .command-button,
+.menu-action-grid .command-button.secondary {
+  width: 100%;
+}
+
+.menu-link-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .compact-heading h3 {
