@@ -5,8 +5,8 @@ const AIR = 0.995;
 const RESTITUTION = 0.22;
 const FRICTION = 0.985;
 const DROP_COOLDOWN = 520;
-const DEATH_LINE_SETTLE_MS = 720;
-const DEATH_LINE_SPEED = 92;
+const DEATH_LINE_GRACE_MS = 1150;
+const DEATH_LINE_TOLERANCE = 8;
 const REVIVE_CLEARANCE = 96;
 const COMBO_WINDOW = 3600;
 const SHARE_REWARD = 50;
@@ -96,6 +96,13 @@ const TASKS = [
   }
 ];
 
+const PANEL_TITLES = {
+  tasks: "任务",
+  catalog: "图鉴",
+  leaderboard: "排行榜",
+  share: "分享"
+};
+
 let state = loadGame();
 let leaderboard = Array.isArray(state.leaderboard) ? state.leaderboard : [...RIVAL_BOARD];
 let canvas;
@@ -114,6 +121,7 @@ let paused = false;
 let gameOver = false;
 let reviveUsed = false;
 let gameOverMode = "final";
+let activePanel = "";
 let toastTimer = 0;
 let rewardTimer = 0;
 let eventsBound = false;
@@ -125,11 +133,8 @@ const els = {
   coinCount: document.querySelector("#coin-count"),
   maxLevel: document.querySelector("#max-level"),
   comboCount: document.querySelector("#combo-count"),
-  taskSummary: document.querySelector("#task-summary"),
-  taskList: document.querySelector("#task-list"),
-  friendSelect: document.querySelector("#friend-select"),
-  giftSummary: document.querySelector("#gift-summary"),
-  giftLeg: document.querySelector("#gift-leg"),
+  taskBadge: document.querySelector("#task-badge"),
+  catalogBadge: document.querySelector("#catalog-badge"),
   nextLabel: document.querySelector("#next-label"),
   nextPreview: document.querySelector("#next-preview"),
   dropLeg: document.querySelector("#drop-leg"),
@@ -145,13 +150,15 @@ const els = {
   reviveRound: document.querySelector("#revive-round"),
   exitRound: document.querySelector("#exit-round"),
   restartRound: document.querySelector("#restart-round"),
-  leaderboardList: document.querySelector("#leaderboard-list"),
-  shareGame: document.querySelector("#share-game"),
-  rewardAd: document.querySelector("#reward-ad"),
-  buyPack: document.querySelector("#buy-pack"),
-  catalogSummary: document.querySelector("#catalog-summary"),
-  catalogList: document.querySelector("#catalog-list"),
-  resetSave: document.querySelector("#reset-save"),
+  openTasks: document.querySelector("#open-tasks"),
+  openCatalog: document.querySelector("#open-catalog"),
+  openLeaderboard: document.querySelector("#open-leaderboard"),
+  openShare: document.querySelector("#open-share"),
+  panelModal: document.querySelector("#panel-modal"),
+  modalScrim: document.querySelector("#modal-scrim"),
+  modalTitle: document.querySelector("#modal-title"),
+  modalBody: document.querySelector("#modal-body"),
+  modalClose: document.querySelector("#modal-close"),
   toast: document.querySelector("#toast")
 };
 
@@ -190,11 +197,12 @@ function bindEvents() {
   els.restartRound.addEventListener("click", startNewRound);
   els.reviveRound.addEventListener("click", revivePlayer);
   els.exitRound.addEventListener("click", exitRound);
-  els.giftLeg.addEventListener("click", giftHighestLeg);
-  els.shareGame.addEventListener("click", handleShareGame);
-  els.rewardAd.addEventListener("click", handleRewardedAd);
-  els.buyPack.addEventListener("click", handleCoinPack);
-  els.resetSave.addEventListener("click", resetSave);
+  [els.openTasks, els.openCatalog, els.openLeaderboard, els.openShare].forEach((button) => {
+    button.addEventListener("click", () => openPanel(button.dataset.panel));
+  });
+  els.modalClose.addEventListener("click", closePanel);
+  els.modalScrim.addEventListener("click", closePanel);
+  els.modalBody.addEventListener("click", handlePanelAction);
 }
 
 function tick(time) {
@@ -359,8 +367,7 @@ function checkDanger() {
 
 function isPastDeathLine(body) {
   const age = Date.now() - Number(body.createdAt || 0);
-  const settled = age > DEATH_LINE_SETTLE_MS && Math.abs(body.vx) < DEATH_LINE_SPEED && Math.abs(body.vy) < DEATH_LINE_SPEED;
-  return settled && body.y - body.radius <= WORLD.dangerY;
+  return age > DEATH_LINE_GRACE_MS && body.y - body.radius <= WORLD.dangerY + DEATH_LINE_TOLERANCE;
 }
 
 function isNearDeathLine(body) {
@@ -515,7 +522,8 @@ function togglePause() {
 function giftHighestLeg() {
   const color = state.player.lastUnlockedColor || "white";
   const level = Math.max(1, state.player.maxLevelAchieved);
-  const receiverId = els.friendSelect.value;
+  const select = document.querySelector("#modal-friend-select");
+  const receiverId = select ? select.value : state.player.friends[0]?.id;
   const receiver = getPlayerById(receiverId);
   const leg = {
     ...createLegRecord(color, level),
@@ -585,9 +593,10 @@ function renderUi() {
   els.coinCount.textContent = formatNumber(state.player.coins);
   els.maxLevel.textContent = `L${state.player.maxLevelAchieved}`;
   els.comboCount.textContent = `${state.player.stats.currentCombo}x`;
-  els.nextLabel.textContent = `${LEG_COLORS[currentLeg.color].label} L${currentLeg.level}`;
+  els.nextLabel.textContent = `${LEG_COLORS[currentLeg.color].label} L${currentLeg.level} / ${LEG_COLORS[nextLeg.color].label} L${nextLeg.level}`;
   els.nextPreview.style.backgroundImage = `url("${currentLeg.image}")`;
-  els.giftSummary.textContent = `L${state.player.maxLevelAchieved}`;
+  els.taskBadge.textContent = `${state.player.achievements.length}/${TASKS.length}`;
+  els.catalogBadge.textContent = String(getCatalogEntries().length);
   els.gameOverPanel.hidden = !gameOver;
   els.gameOverTitle.textContent = gameOverMode === "revive" ? "越线警告" : "本局结束";
   els.gameOverReason.textContent = gameOverMode === "revive"
@@ -597,21 +606,29 @@ function renderUi() {
   els.reviveAd.hidden = gameOverMode !== "revive";
   els.reviveRound.hidden = gameOverMode !== "revive";
   els.exitRound.hidden = gameOverMode !== "revive";
-  els.restartRound.hidden = gameOverMode === "revive";
+  els.restartRound.hidden = false;
   els.dropLeg.disabled = paused || gameOver;
-  els.giftLeg.disabled = state.player.maxLevelAchieved <= 1 && state.player.stats.totalMerges === 0;
-  renderTasks();
-  renderFriends();
-  renderLeaderboard();
   renderRewards();
-  renderCatalog();
   renderDanger();
+  if (activePanel) {
+    renderActivePanel();
+  }
 }
 
 function renderTasks() {
-  const doneCount = state.player.achievements.length;
-  els.taskSummary.textContent = `${doneCount}/${TASKS.length}`;
-  els.taskList.innerHTML = TASKS.map((task) => {
+  if (activePanel === "tasks") {
+    renderActivePanel();
+  }
+}
+
+function renderTasksPanel() {
+  return `
+    <div class="modal-summary">
+      <strong>${state.player.achievements.length}/${TASKS.length}</strong>
+      <span>任务完成后金币自动到账</span>
+    </div>
+    <div class="task-list">
+      ${TASKS.map((task) => {
     const progress = Math.min(task.goal, task.progress(state.player));
     const percent = Math.round((progress / task.goal) * 100);
     const completed = state.player.achievements.includes(task.id);
@@ -627,17 +644,27 @@ function renderTasks() {
         <strong>${completed ? "已完成" : "进行中"}</strong>
       </article>
     `;
-  }).join("");
+  }).join("")}
+    </div>
+  `;
 }
 
 function renderFriends() {
-  els.friendSelect.innerHTML = state.player.friends.map((friend) => {
-    return `<option value="${escapeHtml(friend.id)}">${escapeHtml(friend.username)}</option>`;
-  }).join("");
+  if (activePanel === "share") {
+    renderActivePanel();
+  }
 }
 
 function renderLeaderboard() {
-  els.leaderboardList.innerHTML = leaderboard.map((entry, index) => `
+  if (activePanel === "leaderboard") {
+    renderActivePanel();
+  }
+}
+
+function renderLeaderboardPanel() {
+  return `
+    <ol class="leaderboard">
+      ${leaderboard.map((entry, index) => `
     <li class="${entry.playerId === state.player.id ? "is-player" : ""}">
       <span class="rank">${index + 1}</span>
       <div>
@@ -645,19 +672,31 @@ function renderLeaderboard() {
         <span>L${entry.maxLevel} · ${formatNumber(entry.score || 0)} 分</span>
       </div>
     </li>
-  `).join("");
+  `).join("")}
+    </ol>
+  `;
 }
 
 function renderRewards() {
   const elapsed = Date.now() - Number(state.player.lastRewardedAdAt || 0);
   const cooldown = Math.max(0, AD_COOLDOWN_MS - elapsed);
-  els.rewardAd.disabled = cooldown > 0;
-  els.rewardAd.querySelector("span").textContent = cooldown > 0
-    ? `${Math.ceil(cooldown / 1000)} 秒`
-    : `+${AD_REWARD} 金币`;
+  const button = document.querySelector("[data-action='reward-ad']");
+  if (button) {
+    button.disabled = cooldown > 0;
+    const label = button.querySelector("span");
+    if (label) {
+      label.textContent = cooldown > 0 ? `${Math.ceil(cooldown / 1000)} 秒` : `+${AD_REWARD} 金币`;
+    }
+  }
 }
 
 function renderCatalog() {
+  if (activePanel === "catalog") {
+    renderActivePanel();
+  }
+}
+
+function getCatalogEntries() {
   const entries = [];
   const unlocked = state.player.unlocked || {};
   for (const color of Object.keys(LEG_COLORS)) {
@@ -667,14 +706,121 @@ function renderCatalog() {
     }
   }
 
-  els.catalogSummary.textContent = String(entries.length);
-  els.catalogList.innerHTML = entries.map((entry) => `
+  return entries;
+}
+
+function renderCatalogPanel() {
+  const entries = getCatalogEntries();
+  return `
+    <div class="modal-summary">
+      <strong>${entries.length}</strong>
+      <span>已解锁腿型</span>
+    </div>
+    <div class="catalog-list">
+      ${entries.map((entry) => `
     <span class="catalog-chip rarity-${entry.rarity}">
       <img src="${escapeHtml(getLegAsset(entry.color, entry.level).image)}" alt="" aria-hidden="true">
       <span>${LEG_COLORS[entry.color].label}</span>
       <strong>L${entry.level}</strong>
     </span>
-  `).join("");
+  `).join("")}
+    </div>
+  `;
+}
+
+function renderSharePanel() {
+  const elapsed = Date.now() - Number(state.player.lastRewardedAdAt || 0);
+  const cooldown = Math.max(0, AD_COOLDOWN_MS - elapsed);
+  const giftDisabled = state.player.maxLevelAchieved <= 1 && state.player.stats.totalMerges === 0;
+  const friendOptions = state.player.friends.map((friend) => {
+    return `<option value="${escapeHtml(friend.id)}">${escapeHtml(friend.username)}</option>`;
+  }).join("");
+
+  return `
+    <div class="boost-grid">
+      <button class="reward-tile" data-action="share-game" type="button">
+        <strong>分享游戏</strong>
+        <span>+${SHARE_REWARD} 金币</span>
+      </button>
+      <button class="reward-tile" data-action="reward-ad" type="button" ${cooldown > 0 ? "disabled" : ""}>
+        <strong>激励广告</strong>
+        <span>${cooldown > 0 ? `${Math.ceil(cooldown / 1000)} 秒` : `+${AD_REWARD} 金币`}</span>
+      </button>
+      <button class="reward-tile" data-action="buy-pack" type="button">
+        <strong>金币包</strong>
+        <span>+${COIN_PACK_REWARD} 金币</span>
+      </button>
+    </div>
+    <section class="panel-section modal-section">
+      <div class="panel-heading compact-heading">
+        <h3>好友赠送</h3>
+        <span>最高 L${state.player.maxLevelAchieved}</span>
+      </div>
+      <label class="friend-select">
+        <span>选择好友</span>
+        <select id="modal-friend-select">${friendOptions}</select>
+      </label>
+      <button class="command-button" data-action="gift-leg" type="button" ${giftDisabled ? "disabled" : ""}>赠送选中腿</button>
+    </section>
+    <button class="text-button danger-text" data-action="reset-save" type="button">重置本地存档</button>
+  `;
+}
+
+function openPanel(panel) {
+  if (!PANEL_TITLES[panel]) {
+    return;
+  }
+
+  activePanel = panel;
+  els.panelModal.hidden = false;
+  document.body.classList.add("modal-open");
+  renderActivePanel();
+}
+
+function closePanel() {
+  activePanel = "";
+  els.panelModal.hidden = true;
+  document.body.classList.remove("modal-open");
+}
+
+function renderActivePanel() {
+  if (!activePanel) {
+    return;
+  }
+
+  const renderers = {
+    tasks: renderTasksPanel,
+    catalog: renderCatalogPanel,
+    leaderboard: renderLeaderboardPanel,
+    share: renderSharePanel
+  };
+  const renderer = renderers[activePanel];
+  els.modalTitle.textContent = PANEL_TITLES[activePanel];
+  els.modalBody.innerHTML = renderer ? renderer() : "";
+}
+
+function handlePanelAction(event) {
+  const control = event.target.closest("[data-action]");
+  if (!control || control.disabled) {
+    return;
+  }
+
+  const action = control.dataset.action;
+  if (action === "share-game") {
+    handleShareGame();
+  } else if (action === "reward-ad") {
+    handleRewardedAd();
+  } else if (action === "buy-pack") {
+    handleCoinPack();
+  } else if (action === "gift-leg") {
+    giftHighestLeg();
+  } else if (action === "reset-save") {
+    resetSave();
+  }
+
+  if (activePanel) {
+    renderActivePanel();
+  }
 }
 
 function renderDanger() {
@@ -936,7 +1082,7 @@ function hydrateBody(raw) {
   body.id = raw.id || generateUniqueId();
   body.vx = Number(raw.vx || 0);
   body.vy = Number(raw.vy || 0);
-  body.createdAt = Number(raw.createdAt || Date.now() - DEATH_LINE_SETTLE_MS);
+  body.createdAt = Number(raw.createdAt || Date.now() - DEATH_LINE_GRACE_MS);
   return body;
 }
 

@@ -39,42 +39,14 @@
             <dd id="combo-count">0x</dd>
           </div>
         </dl>
-
-        <button class="icon-button reset-button" id="reset-save" type="button" aria-label="重置存档">
-          <span aria-hidden="true">R</span>
-        </button>
       </header>
 
       <section class="game-layout">
-        <aside class="panel side-panel" aria-label="任务与好友">
-          <section class="panel-section" aria-labelledby="tasks-title">
-            <div class="panel-heading">
-              <h2 id="tasks-title">任务</h2>
-              <span id="task-summary">0/0</span>
-            </div>
-            <div class="task-list" id="task-list"></div>
-          </section>
-
-          <section class="panel-section" aria-labelledby="friends-title">
-            <div class="panel-heading">
-              <h2 id="friends-title">好友</h2>
-              <span id="gift-summary">L1</span>
-            </div>
-            <label class="friend-select">
-              <span>接收人</span>
-              <select id="friend-select"></select>
-            </label>
-            <button class="command-button secondary" id="gift-leg" type="button">
-              赠送最高肌肉腿
-            </button>
-          </section>
-        </aside>
-
         <section class="arena panel" aria-labelledby="arena-title">
           <div class="arena-head">
             <div>
               <p class="eyebrow">Suika Style</p>
-              <h2 id="arena-title">下落合成场</h2>
+              <h2 id="arena-title">合成场</h2>
             </div>
             <div class="arena-tools" aria-label="本局操作">
               <div class="next-card" aria-label="下一条肌肉腿">
@@ -119,57 +91,43 @@
           </div>
         </section>
 
-        <aside class="panel side-panel" aria-label="排行榜与奖励">
-          <section class="panel-section" aria-labelledby="leaderboard-title">
-            <div class="panel-heading">
-              <h2 id="leaderboard-title">排行榜</h2>
-              <span>Top 10</span>
-            </div>
-            <ol class="leaderboard" id="leaderboard-list"></ol>
-          </section>
-
-          <section class="panel-section" aria-labelledby="boost-title">
-            <div class="panel-heading">
-              <h2 id="boost-title">奖励</h2>
-              <span>活动</span>
-            </div>
-            <div class="boost-grid">
-              <button class="reward-tile" id="share-game" type="button">
-                <strong>分享</strong>
-                <span>+50 金币</span>
-              </button>
-              <button class="reward-tile" id="reward-ad" type="button">
-                <strong>激励广告</strong>
-                <span>+80 金币</span>
-              </button>
-              <button class="reward-tile" id="buy-pack" type="button">
-                <strong>金币包</strong>
-                <span>+300 金币</span>
-              </button>
-            </div>
-          </section>
-
-          <section class="panel-section" aria-labelledby="revive-ad-title">
-            <div class="panel-heading">
-              <h2 id="revive-ad-title">复活广告</h2>
-              <span>扫码位</span>
-            </div>
-            <div class="ad-slot">
-              <img src="assets/ads/revive_ad_qrcode.png" alt="扫码复活广告位">
-              <p>游戏结束后扫码或观看广告可复活</p>
-            </div>
-          </section>
-
-          <section class="panel-section" aria-labelledby="catalog-title">
-            <div class="panel-heading">
-              <h2 id="catalog-title">图鉴</h2>
-              <span id="catalog-summary">0</span>
-            </div>
-            <div class="catalog-list" id="catalog-list"></div>
-          </section>
-        </aside>
+        <nav class="bottom-dock" aria-label="功能入口">
+          <button class="dock-button" id="open-tasks" type="button" data-panel="tasks">
+            <span aria-hidden="true">✓</span>
+            <strong>任务</strong>
+            <em id="task-badge">0/0</em>
+          </button>
+          <button class="dock-button" id="open-catalog" type="button" data-panel="catalog">
+            <span aria-hidden="true">▦</span>
+            <strong>图鉴</strong>
+            <em id="catalog-badge">0</em>
+          </button>
+          <button class="dock-button" id="open-leaderboard" type="button" data-panel="leaderboard">
+            <span aria-hidden="true">#</span>
+            <strong>排行</strong>
+            <em>Top</em>
+          </button>
+          <button class="dock-button" id="open-share" type="button" data-panel="share">
+            <span aria-hidden="true">↗</span>
+            <strong>分享</strong>
+            <em>奖励</em>
+          </button>
+        </nav>
       </section>
     </main>
+
+    <div class="modal-overlay" id="panel-modal" hidden>
+      <button class="modal-scrim" id="modal-scrim" type="button" aria-label="关闭弹窗"></button>
+      <section class="utility-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+        <header class="modal-head">
+          <h2 id="modal-title">任务</h2>
+          <button class="icon-button" id="modal-close" type="button" aria-label="关闭">
+            <span aria-hidden="true">×</span>
+          </button>
+        </header>
+        <div class="modal-body" id="modal-body"></div>
+      </section>
+    </div>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
